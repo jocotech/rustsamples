@@ -1,0 +1,136 @@
+use actix_web::{get, put, post, delete, web, App, HttpResponse, HttpServer, Responder};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct UserProfile {
+    pub id: Option<i64>,
+    pub name: String,
+    pub email: String,
+    pub bio: Option<String>,
+    pub age: Option<i32>,
+}
+
+#[derive(Debug, Clone)]
+pub struct UserRepository {
+    user_profiles: HashMap<i64, UserProfile>,
+    next_id: i64,
+}
+
+impl UserRepository {
+    pub fn new() -> Self {
+        Self {
+            user_profiles: HashMap::new(),
+            next_id: 1,
+        }
+    }
+
+    pub fn create_user_profile(&mut self, profile: &UserProfile) -> i64 {
+        let id = self.next_id;
+        let mut new_profile = profile.clone();
+        new_profile.id = Some(id);
+        self.user_profiles.insert(id, new_profile);
+        self.next_id += 1;
+        id
+    }
+
+    pub fn get_user_profile(&self, id: i64) -> Option<UserProfile> {
+        self.user_profiles.get(&id).cloned()
+    }
+
+    pub fn update_user_profile(&mut self, id: i64, profile: &UserProfile) {
+        let mut updated_profile = profile.clone();
+        updated_profile.id = Some(id);
+        self.user_profiles.insert(id, updated_profile);
+    }
+
+    pub fn delete_user_profile(&mut self, id: i64) {
+        self.user_profiles.remove(&id);
+    }
+}
+
+#[post("/user_profiles")]
+async fn create_user_profile(
+    user_repository: web::Data<UserRepository>,
+    profile: web::Json<UserProfile>,
+) -> impl Responder {
+    let id = user_repository.create_user_profile(&profile);
+    HttpResponse::Created().json(id)
+}
+
+#[get("/user_profiles/{id}")]
+async fn get_user_profile(
+    user_repository: web::Data<UserRepository>,
+    web::Path(id): web::Path<i64>,
+) -> impl Responder {
+    match user_repository.get_user_profile(id) {
+        Some(profile) => HttpResponse::Ok().json(profile),
+        None => HttpResponse::NotFound().finish(),
+    }
+}
+
+#[put("/user_profiles/{id}")]
+async fn update_user_profile(
+    user_repository: web::Data<UserRepository>,
+    web::Path(id): web::Path<i64>,
+    profile: web::Json<UserProfile>,
+) -> impl Responder {
+    user_repository.update_user_profile(id, &profile);
+    HttpResponse::NoContent().finish()
+}
+
+#[delete("/user_profiles/{id}")]
+async fn delete_user_profile(
+    user_repository: web::Data<UserRepository>,
+    web::Path(id): web::Path<i64>,
+) -> impl Responder {
+    user_repository.delete_user_profile(id);
+    HttpResponse::NoContent().finish()
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    let user_repository = web::Data::new(UserRepository::new());
+
+    HttpServer::new(move || {
+        App::new()
+            .app_data(user_repository.clone())
+            .service(create_user_profile)
+            .service(get_user_profile)
+            .service(update_user_profile)
+            .service(delete_user_profile)
+    })
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await
+}
+
+This example defines a UserRepository struct that stores user profiles in a HashMap in memory
+
+[dependencies]
+actix-web = "3.3.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.64"
+actix-web is the web framework we're using, serde is a serialization library that we're using to serialize/deserialize our user profile struct to/from JSON, and serde_json is a specific JSON serialization/deserialization implementation for serde.
+
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "email": "johndoe@example.com", "bio": "A software developer from San Francisco", "age": 30}' \
+  http://localhost:8080/user_profiles
+
+curl -X GET \
+  http://localhost:8080/user_profiles/1
+
+curl -X PUT \
+  -H "Content-Type: application/json" \
+  -d '{"name": "John Doe", "email": "johndoe@example.com", "bio": "A software developer from San Francisco", "age": 31}' \
+  http://localhost:8080/user_profiles/1
+  
+  curl -X DELETE \
+  http://localhost:8080/user_profiles/1
+
+
+
+
+
+
