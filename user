@@ -1,0 +1,96 @@
+use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UserProfile {
+    pub id: Option<i64>,
+    pub name: String,
+    pub email: String,
+    pub bio: Option<String>,
+    pub age: Option<i32>,
+}
+
+pub struct UserRepository {
+    user_profiles: HashMap<i64, UserProfile>,
+    next_id: i64,
+}
+
+impl UserRepository {
+    pub fn new() -> Self {
+        Self {
+            user_profiles: HashMap::new(),
+            next_id: 1,
+        }
+    }
+
+    pub fn create_user_profile(&mut self, profile: &UserProfile) -> i64 {
+        let id = self.next_id;
+        let mut new_profile = profile.clone();
+        new_profile.id = Some(id);
+        self.user_profiles.insert(id, new_profile);
+        self.next_id += 1;
+        id
+    }
+
+    pub fn get_user_profile(&self, id: i64) -> Option<UserProfile> {
+        self.user_profiles.get(&id).cloned()
+    }
+
+    pub fn update_user_profile(&mut self, id: i64, profile: &UserProfile) {
+        let mut updated_profile = profile.clone();
+        updated_profile.id = Some(id);
+        self.user_profiles.insert(id, updated_profile);
+    }
+
+    pub fn delete_user_profile(&mut self, id: i64) {
+        self.user_profiles.remove(&id);
+    }
+}
+
+fn main() {
+    let mut user_repository = UserRepository::new();
+
+    let user1 = UserProfile {
+        id: None,
+        name: "Alice".to_string(),
+        email: "alice@example.com".to_string(),
+        bio: Some("I'm Alice".to_string()),
+        age: Some(30),
+    };
+
+    let user2 = UserProfile {
+        id: None,
+        name: "Bob".to_string(),
+        email: "bob@example.com".to_string(),
+        bio: Some("I'm Bob".to_string()),
+        age: Some(40),
+    };
+
+    let user1_id = user_repository.create_user_profile(&user1);
+    let user2_id = user_repository.create_user_profile(&user2);
+
+    let fetched_user1 = user_repository.get_user_profile(user1_id).unwrap();
+    let fetched_user2 = user_repository.get_user_profile(user2_id).unwrap();
+
+    println!("{:?}", fetched_user1);
+    println!("{:?}", fetched_user2);
+
+    let updated_user1 = UserProfile {
+        id: None,
+        name: "Alice Smith".to_string(),
+        email: "alice.smith@example.com".to_string(),
+        bio: Some("I'm Alice Smith".to_string()),
+        age: Some(35),
+    };
+
+    user_repository.update_user_profile(user1_id, &updated_user1);
+
+    let fetched_user1 = user_repository.get_user_profile(user1_id).unwrap();
+    println!("{:?}", fetched_user1);
+
+    user_repository.delete_user_profile(user2_id);
+
+    let fetched_user2 = user_repository.get_user_profile(user2_id);
+    assert_eq!(fetched_user2, None);
+}
+This example defines a UserRepository struct that stores user profiles in a HashMap in memory. The create_user_profile, get_user_profile, update_user_profile, and delete_user_profile methods provide CRUD operations on the user profiles. Note that we also keep track of the next available ID in the UserRepository struct so that we can assign IDs to new user profiles as they are created.
